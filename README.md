@@ -10,3 +10,5 @@
 
 2.Download from Github release
 
+![](https://user-images.githubusercontent.com/31509619/97084567-98b01680-164a-11eb-8b08-0039bc30f951.png)
+
