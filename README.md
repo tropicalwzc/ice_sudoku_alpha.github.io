@@ -10,6 +10,4 @@
 
 2.Download from Github release
 
-![](https://user-images.githubusercontent.com/31509619/97084567-98b01680-164a-11eb-8b08-0039bc30f951.png)
-
-![](https://user-images.githubusercontent.com/31509619/97084578-a9608c80-164a-11eb-95e1-58a086dbbd2e.png)
+![](https://user-images.githubusercontent.com/31509619/97099977-cee0ab00-16c9-11eb-846d-c729397dba84.png)
