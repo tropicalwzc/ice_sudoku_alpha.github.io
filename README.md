@@ -1,4 +1,4 @@
-## This is alpha version of ice sudoku android
+## ice sudoku android 内测版本
 
 1.通过百度云下载
 
