@@ -1,7 +1,10 @@
 package com.example.icesudoku;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -10,6 +13,7 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
@@ -28,8 +32,15 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,7 +57,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import com.example.icesudoku.ice_sudoku_core;
-
 public class MainActivity extends AppCompatActivity {
     //colors
     int originbackgroudcolor = Color.rgb(224, 224, 224);
@@ -59,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
     RelativeLayout.LayoutParams[][] largebutton_params = new RelativeLayout.LayoutParams[9][9];
     boolean[][][] should_not_add_candidate_position = new boolean[9][9][10];
     TextView[][][] candidatebutton = new TextView[9][9][10];
+    TextView analysis_board ;
     int[][][][] candidate_positions = new int[9][9][10][2];
     Button[][] sudobuttons = new Button[9][9];
     Button[] numbuttons = new Button[9];
@@ -99,17 +110,16 @@ public class MainActivity extends AppCompatActivity {
     int []already_settings=new int[2];
     boolean auto_update_candidate=true;
     boolean use_extra_link=true;
+    boolean analysis_board_on=false;
     String tech_str="";
     String extra_str="";
-
-    filer file_operator = new filer();
     stepper step_player = new stepper();
     Timer timer;
     int total_unit;
     int total_height, total_width, bigblocksizer;
     static final int nThreads = Runtime.getRuntime().availableProcessors();
-    int thread_num = 16;
-    SudokuGenerationTask[] sudotasks = new SudokuGenerationTask[16];
+    int thread_num = Math.min(nThreads*2, 20);
+    SudokuGenerationTask[] sudotasks = new SudokuGenerationTask[20];
     int aim_difficulty;
     Vector<Object> seeds_vec = new Vector<>();
     ExecutorService fixedThreadPool = Executors.newCachedThreadPool();
@@ -117,7 +127,6 @@ public class MainActivity extends AppCompatActivity {
     MyCanvas drawer;
     RelativeLayout sudolayout_outer;
     boolean canvas_showing;
-
     class solve_sudoku_act implements View.OnClickListener {
         @Override
         public void onClick(View view) {
@@ -194,6 +203,10 @@ public class MainActivity extends AppCompatActivity {
         public void onClick(View view) {
             if(!auto_update_candidate){
                 alertmessage_with("⚠️","必须打开自动候选才能使用分步求解");
+                return;
+            }
+            if(sudo_player.spacevacant(sudoext,66)==1){
+                alertmessage_with("⚠️","数独至少有17个有效数字");
                 return;
             }
             auto_deal_with_stepper();
@@ -481,6 +494,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         sudotool_btns[6].setVisibility(View.VISIBLE);
+        if(analysis_board_on){
+            setTitle(tech_str);
+            analysis_board.setText(extra_str);
+        }
     }
     String link_check_report(){
         String linkrep="";
@@ -547,6 +564,7 @@ public class MainActivity extends AppCompatActivity {
         }
         String tit = String.format("难度 %.1f", current_difficulty);
         alertmessage_with(tit, analysistext);
+        setTitle(tit);
     }
 
     void alertmessage_with(String title, String message) {
@@ -599,7 +617,7 @@ public class MainActivity extends AppCompatActivity {
             update_strs[i] = "空";
         }
         final String timepacksavename = "ICESAVEUPDATETIMES";
-        final String timepackstr = file_operator.ReadFile(timepacksavename);
+        final String timepackstr = ReadFile(timepacksavename);
         if (timepackstr != null) {
             String[] pieces = timepackstr.split(",");
             for (int i = 0; i < pieces.length && i < 31; i++) {
@@ -627,7 +645,7 @@ public class MainActivity extends AppCompatActivity {
                         for (int fi = 0; fi < 31; fi++) {
                             packer.append(update_strs[fi]).append(",");
                         }
-                        file_operator.WriteFile(timepacksavename, packer.toString());
+                        WriteFile(timepacksavename, packer.toString());
                     }
                 }
             }
@@ -642,7 +660,7 @@ public class MainActivity extends AppCompatActivity {
             update_strs[i] = "空";
         }
         final String timepacksavename = "ICESAVEUPDATETIMES";
-        final String timepackstr = file_operator.ReadFile(timepacksavename);
+        final String timepackstr = ReadFile(timepacksavename);
         if (timepackstr != null) {
             String[] pieces = timepackstr.split(",");
             for (int i = 0; i < pieces.length && i < 31; i++) {
@@ -670,7 +688,7 @@ public class MainActivity extends AppCompatActivity {
                         for (int fi = 0; fi < 31; fi++) {
                             packer.append(update_strs[fi]).append(",");
                         }
-                        file_operator.WriteFile(timepacksavename, packer.toString());
+                        WriteFile(timepacksavename, packer.toString());
                     }
                 }
             }
@@ -908,7 +926,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void load_settings(){
-        String settings_str = file_operator.ReadFile("IceSudokuCustomSettings");
+        String settings_str = ReadFile("IceSudokuCustomSettings");
         int []settings={1,1};
         if(settings_str!=null){
             for(int i=0;i<settingnum&&i<settings_str.length();i++){
@@ -917,7 +935,7 @@ public class MainActivity extends AppCompatActivity {
         }
         for(int j=0;j<2;j++){
             already_settings[j]=settings[j];
-            System.out.printf("Setting %d is %d\n",j,already_settings[j]);
+//            System.out.printf("Setting %d is %d\n",j,already_settings[j]);
         }
 
     }
@@ -941,13 +959,13 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("剪切板");
         final EditText editor = new EditText(MainActivity.this);
-        editor.setText(file_operator.pack_sudoku(sudoext));
+        editor.setText(pack_sudoku(sudoext));
 
         final String[] items = new String[]{"读取","取消"};
         builder.setPositiveButton("读取", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-               boolean res = file_operator.release_sudoku_from(sudoext,editor.getText().toString());
+               boolean res = release_sudoku_from(sudoext,editor.getText().toString());
                if(res){
                     sudo_player.clear_bits(sudo);
                     sudo_player.copysudo(sudo[0],sudoext);
@@ -990,7 +1008,7 @@ public class MainActivity extends AppCompatActivity {
                 for(int ic=0;ic<settingnum;ic++){
                     newsettingstr+=String.format("%d",already_settings[ic]);
                 }
-                file_operator.WriteFile("IceSudokuCustomSettings",newsettingstr);
+                WriteFile("IceSudokuCustomSettings",newsettingstr);
                 apply_settings();
 
             }
@@ -1028,6 +1046,7 @@ public class MainActivity extends AppCompatActivity {
             long ids = view.getId();
             int opt = (int) ids - 5100;
             clear_color_board();
+            setTitle("");
             if (opt == 0) {
                 if (focus_x != -1)
                     number_click_happened(0);
@@ -1075,6 +1094,7 @@ public class MainActivity extends AppCompatActivity {
     class clear_all_act implements View.OnClickListener {
         @Override
         public void onClick(View view) {
+            setTitle("");
             sure_or_not_clear_all();
         }
     }
@@ -1169,6 +1189,7 @@ public class MainActivity extends AppCompatActivity {
             ice_sudoku_core.taskover = true;
         } else {
             seeds_vec.clear();
+            setTitle("生成数独中 ...");
             thbgid = 0;
             aim_difficulty = real_difficuly;
             newly_generated = false;
@@ -1229,12 +1250,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     boolean save_all_to(String savename) {
-        boolean res = file_operator.save_to_pack(savename, sudoext, player_ans, player_candidate, should_not_add_candidate_position);
+        boolean res = save_to_pack(savename, sudoext, player_ans, player_candidate, should_not_add_candidate_position);
         return res;
     }
 
     boolean read_all_from(String savename) {
-        boolean res = file_operator.read_from_pack(savename, sudoext, player_ans, player_candidate, should_not_add_candidate_position);
+        boolean res = read_from_pack(savename, sudoext, player_ans, player_candidate, should_not_add_candidate_position);
         if (!res)
             return false;
         sudo_player.copysudo(sudo[0], player_ans);
@@ -1300,6 +1321,10 @@ public class MainActivity extends AppCompatActivity {
             clear_canvas_view();
             canvas_showing = false;
         }
+        if(analysis_board_on){
+            analysis_board.setText("");
+        }
+        setTitle("");
         if (green_num == -1)
             return;
 
@@ -1415,6 +1440,10 @@ public class MainActivity extends AppCompatActivity {
     }
     void display_sudoku(int [][][]sudo){
         String allstr = "";
+        setTitle("");
+        if(analysis_board_on){
+            analysis_board.setText("");
+        }
         for(int i=0;i<9;i++){
             for(int j=0;j<9;j++){
                 String shower="";
@@ -1439,11 +1468,13 @@ public class MainActivity extends AppCompatActivity {
     }
     void init_view()
     {
+        this.getApplicationContext().getFileStreamPath("FileName.xml")
+            .getPath();
+        rander.setSeed(get_nano_sec());
+        step_player.init();
         for(int i=0;i<thread_num;i++){
             sudotasks[i]=new SudokuGenerationTask();
         }
-        rander.setSeed(get_nano_sec());
-        step_player.init();
         RelativeLayout sudolayout = new RelativeLayout(this);
         Resources resources = this.getResources();
         DisplayMetrics dm = resources.getDisplayMetrics();
@@ -1462,6 +1493,7 @@ public class MainActivity extends AppCompatActivity {
             smallnumsize=10;
             bignumsize=26;
         }
+
 
         for(int i=0;i<9;i++)
             for(int j=0;j<9;j++)
@@ -1501,6 +1533,7 @@ public class MainActivity extends AppCompatActivity {
                     candidatebutton[i][j][p].setIncludeFontPadding(false);
                     candidatebutton[i][j][p].setBackgroundColor(originbackgroudcolor);
 //                    candidatebutton[i][j][p].setTypeface(null, Typeface.SANS_SERIF.);
+
                     candidatebutton[i][j][p].setPadding(0,0,0,0);
                     candidatebutton[i][j][p].setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
                     candidatebutton[i][j][p].setTextColor(Color.rgb(0,0,0));
@@ -1518,6 +1551,22 @@ public class MainActivity extends AppCompatActivity {
          int difficulty_btn_top_position = total_height - 16*bigblocksizer - bigblocksizer/3;
          if(difficulty_btn_top_position<0)
              difficulty_btn_top_position=0;
+
+         if(difficulty_btn_top_position>100){
+             analysis_board = new TextView(this);
+             RelativeLayout.LayoutParams btParams = new RelativeLayout.LayoutParams(total_width,difficulty_btn_top_position);
+             btParams.leftMargin=0;
+             btParams.topMargin=0;
+             analysis_board.setPadding(10,10,10,10);
+             analysis_board.setLayoutParams(btParams);
+             analysis_board_on=true;
+             analysis_board.setTextSize(16);
+
+             analysis_board.setBackgroundColor(originbackgroudcolor);
+             sudolayout.addView(analysis_board);
+         }
+
+
         for(int q=0;q<3;q++){
             sudogeneroption_btns[q]=new ImageButton(this);
             sudogeneroption_btns[q].setId(2000+q);
@@ -1802,12 +1851,12 @@ public class MainActivity extends AppCompatActivity {
                 if(timecounter==3){
                     sudogeneroption_btns[2].setVisibility(View.VISIBLE);
                 }
-//                int i = rander.nextInt(9);
-//                int j = rander.nextInt(9);
-//                int r = rander.nextInt(255);
-//                int g = rander.nextInt(255);
-//                int b = rander.nextInt(255);
-//                sudobuttons[i][j].setBackgroundColor(Color.rgb(r,g,b));
+                int i = rander.nextInt(9);
+                int j = rander.nextInt(9);
+                int r = rander.nextInt(255);
+                int g = rander.nextInt(255);
+                int b = rander.nextInt(255);
+                sudobuttons[i][j].setBackgroundColor(Color.rgb(r,g,b));
             }
             else if(msg.what==3){
                 sudo_player.clear_bits(sudo);
@@ -1965,5 +2014,178 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    public String pack_sudoku(int [][]sudo){
+        StringBuilder res = new StringBuilder();
+        for(int i=0;i<9;i++)
+            for(int j=0;j<9;j++){
+                String sub = String.format("%d",sudo[j][i]);
+                res.append(sub);
+            }
+        return res.toString();
+    }
+    public boolean release_sudoku_from(int [][]sudo,String source){
+        if(source.length()!=81)
+            return false;
+        for(int i=0;i<source.length();i++){
+            int x=i%9;
+            int y=i/9;
+            int v=source.charAt(i)-'0';
+            if(v>=0&&v<=9){
+                sudo[x][y]=v;
+            }
+            else{
+                return false;
+            }
+        }
+        return true;
+    }
+    public String pack_9_9_10_sudoku(int [][][]sudo){
+        StringBuilder res = new StringBuilder();
+        for(int i=0;i<9;i++)
+            for(int j=0;j<9;j++){
+                for(int p=0;p<10;p++){
+                    String sub = String.format("%d",sudo[i][j][p]);
+                    res.append(sub);
+                }
+            }
+        return res.toString();
+    }
+    public boolean release_9_9_10_sudoku_from(int [][][]sudo,String source){
+        if(source.length()<810)
+            return false;
+        for(int i=0;i<source.length();i++){
+            int x=i/90;
+            int y=(i%90)/10;
+            int z=i%10;
+            int v=source.charAt(i)-'0';
+            if(v>=0&&v<=9){
+                sudo[x][y][z]=v;
+            }
+            else{
+                return false;
+            }
+        }
+        return true;
+    }
+    public String pack_9_9_10_sudoku(boolean [][][]sudo){
+        StringBuilder res = new StringBuilder();
+        for(int i=0;i<9;i++)
+            for(int j=0;j<9;j++){
+                for(int p=0;p<10;p++){
+                    String sub = "0";
+                    if(sudo[i][j][p])
+                        sub="1";
+                    res.append(sub);
+                }
+            }
+        return res.toString();
+    }
+    public boolean release_9_9_10_sudoku_from(boolean [][][]sudo,String source){
+        if(source.length()<810)
+            return false;
+        for(int i=0;i<source.length();i++){
+            int x=i/90;
+            int y=(i%90)/10;
+            int z=i%10;
+            int v=source.charAt(i)-'0';
+            if(v>=0&&v<=9){
+                sudo[x][y][z]= v != 0;
+            }
+            else{
+                return false;
+            }
+        }
+        return true;
+    }
 
+    public boolean save_to_pack(String packname,int [][]sudoext,int [][]player_ans,int [][][]player_candidate,boolean [][][]should_not_add_candidate_position){
+        String aimstr = "";
+        aimstr+=pack_sudoku(sudoext);
+        aimstr+=",";
+        aimstr+=pack_sudoku(player_ans);
+        aimstr+=",";
+        aimstr+=pack_9_9_10_sudoku(player_candidate);
+        aimstr+=",";
+        aimstr+=pack_9_9_10_sudoku(should_not_add_candidate_position);
+        WriteFile(packname,aimstr);
+        return true;
+    }
+    public boolean read_from_pack(String packname,int [][]sudoext,int [][]player_ans,int [][][]player_candidate,boolean [][][]should_not_add_candidate_position){
+        String aimstr = ReadFile(packname);
+        if(aimstr==null)
+            return false;
+        String []pieces = aimstr.split(",");
+        boolean res = release_sudoku_from(sudoext,pieces[0]);
+        if(!res)
+            return false;
+        res=release_sudoku_from(player_ans,pieces[1]);
+        if(!res)
+            return false;
+        res=release_9_9_10_sudoku_from(player_candidate,pieces[2]);
+        if(!res)
+            return false;
+        res=release_9_9_10_sudoku_from(should_not_add_candidate_position,pieces[3]);
+        return res;
+    }
+    public String ReadFile(String fileName) {
+        fileName+=".txt";
+        File file = new java.io.File((this
+                .getApplicationContext().getFileStreamPath(fileName)
+                .getPath()));
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+
+            StringBuilder result = new StringBuilder();
+            String line = "";
+
+            while ((line = br.readLine()) != null) {
+                result.append(line);
+            }
+            return result.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return null;
+    }
+    // 写入文件
+    public void WriteFile(String fileName,String Content) {
+        fileName+=".txt";
+        File file = new java.io.File((this
+                .getApplicationContext().getFileStreamPath(fileName)
+                .getPath()));
+        if(!file.exists()){
+            try {
+                boolean res = file.createNewFile();
+                if(!res)
+                    return;
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(file);
+            fos.write(Content.getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 }
