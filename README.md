@@ -1,6 +1,4 @@
-# ice_sudoku_alpha.github.io
-
-## alpha版本的ice sudoku，崩溃和卡顿随时可能发生
+## alpha版本的ice sudoku，很可能仍然存在各种各样的bug
 
 ## This is alpha version of ice sudoku android
 
