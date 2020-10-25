@@ -1,5 +1,3 @@
-## alpha版本的ice sudoku，很可能仍然存在各种各样的bug
-
 ## This is alpha version of ice sudoku android
 
 1.通过百度云下载
