@@ -9,3 +9,5 @@
 
 
 ![](https://github.com/tropicalwzc/ice_sudoku_alpha.github.io/releases/download/1.4/Screenshot_20260812_160442.png)
+
+![](https://github.com/tropicalwzc/ice_sudoku_alpha.github.io/releases/download/1.4/Screenshot_20260812_160522.png)
