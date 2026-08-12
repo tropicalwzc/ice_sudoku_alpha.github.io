@@ -1,8 +1,7 @@
 ## ice sudoku android 内测版本
 
 1.通过百度云下载
-
-<https://pan.baidu.com/s/1uWBtKJTDklAraibBH5RIjA>  密码: 23kl
+<[下载链接](https://pan.baidu.com/s/5uwKQN04Jk6E9bA0clv_hng)>
 
 2.Download from Github release
 
