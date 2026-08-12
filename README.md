@@ -1,4 +1,4 @@
-## ice sudoku android 内测版本
+## ice sudoku android 1.4正式版本
 
 1.通过百度云下载
 <[下载链接](https://pan.baidu.com/s/5uwKQN04Jk6E9bA0clv_hng)>
